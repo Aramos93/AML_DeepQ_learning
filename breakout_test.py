@@ -38,17 +38,24 @@ class FramePreprocessor:
     def normalize_frame(self, tf_frame):
         return tf_frame/255
 
+    def plot_frame_from_greyscale_values(self, image): 
+        from scipy.ndimage.interpolation import rotate
+        height, width, _ = image.shape 
+        grey_image = [[(image[i, j].numpy()[0], image[i, j].numpy()[0], image[i, j].numpy()[0]) 
+                      for i in range(height)] 
+                      for j in range(width)]
+        grey_image = rotate(grey_image, angle=-90)
+        plt.imshow(grey_image) #, cmap='gray')
+        plt.show()
+
     def preprocess_frame(self, frame):
         tf_frame = tf.Variable(frame, shape=self.state_space, dtype=tf.uint8)
-        #plt.imshow(np.array(tf.cast(tf_frame,dtype=tf.float32)))
-        #TODO Test for each method to find out where it goes wrong
         image = self.convert_rgb_to_grayscale(tf_frame)
         image = self.resize_frame(image, FRAME_HEIGHT, FRAME_WIDTH)
+        # self.plot_frame_from_greyscale_values(image)
         image = self.normalize_frame(image)
         image = tf.cast(image, dtype=tf.uint8)
-        
-        #plt.imshow(image)
-        #plt.show()
+
         return image
 
 
