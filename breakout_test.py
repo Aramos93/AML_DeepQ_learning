@@ -14,7 +14,34 @@ import matplotlib.pyplot as plt
 MEMORY_CAPACITY = 10000
 PROBLEM = 'BreakoutDeterministic-v4'
 NUMBER_OF_EPISODES = 10
+FRAME_HEIGHT, FRAME_WIDTH = 84, 84 #TODO downsample to half?
 
+
+"""
+FramePreprocessor resizes, normalizes and converts rgb atari frames
+to grayscale frames
+"""
+class FramePreprocessor:
+
+    def __init__(self, state_space):
+        self.state_space = state_space
+
+    #TODO Do we get 1 grayscale?
+    def convert_rgb_to_grayscale(self, tf_frame):
+        return tf.image.rgb_to_grayscale(tf_frame)
+    
+    def resize_frame(self, tf_frame, frame_height, frame_width):
+        return tf.image.resize_images(tf_frame, [frame_height,frame_width], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+
+    def normalize_frame(self, tf_frame):
+        return tf_frame/255
+
+    def preprocess_frame(self, frame):
+        tf_frame = tf.Variable(frame, shape=self.state_space, dtype=tf.uint8)
+        image = self.convert_rgb_to_grayscale(tf_frame)
+        image = self.resize_frame(image, FRAME_HEIGHT, FRAME_WIDTH)
+        image = self.normalize_frame(image)
+        return image
 
 
 
@@ -107,6 +134,8 @@ class Environment:
     
     def __init__(self,problem):
         self.env = gym.make(problem)
+        self.state_space = self.env.observation_space.shape
+        self.frame_preprocessor = FramePreprocessor(self.state_space)
 
 
     def run(self, agent):
@@ -118,6 +147,7 @@ class Environment:
 
             action = agent.choose_action(state)
             next_state, reward, is_done, _ = self.env.step(action)
+            preprocessed_next_state = self.frame_preprocessor.preprocess_frame(next_state)
 
             # if is_done:
             #     next_state = None
@@ -136,10 +166,10 @@ class Environment:
         print(f"Total reward: {total_reward}")
 
 
-env = Environment(PROBLEM)
+game = Environment(PROBLEM)
 
-number_of_states = env.env.observation_space.shape[0]
-number_of_actions = env.env.action_space.n
+number_of_states = game.env.observation_space.shape
+number_of_actions = game.env.action_space.n
 
 agent = Agent(number_of_states, number_of_actions)
 
@@ -147,4 +177,4 @@ agent = Agent(number_of_states, number_of_actions)
 #     env.run(agent)
 
 while True:
-    env.run(agent)
+    game.run(agent)
