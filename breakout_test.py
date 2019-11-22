@@ -10,6 +10,8 @@ import matplotlib.pyplot as plt
 #play.play(env, zoom=3)
 
 
+print(tf.__version__)  # for Python 2
+
 #Constants
 MEMORY_CAPACITY = 10000
 PROBLEM = 'BreakoutDeterministic-v4'
@@ -31,16 +33,22 @@ class FramePreprocessor:
         return tf.image.rgb_to_grayscale(tf_frame)
     
     def resize_frame(self, tf_frame, frame_height, frame_width):
-        return tf.image.resize_images(tf_frame, [frame_height,frame_width], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
+        return tf.image.resize(tf_frame, [frame_height,frame_width], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
     def normalize_frame(self, tf_frame):
         return tf_frame/255
 
     def preprocess_frame(self, frame):
         tf_frame = tf.Variable(frame, shape=self.state_space, dtype=tf.uint8)
+        #plt.imshow(np.array(tf.cast(tf_frame,dtype=tf.float32)))
+        #TODO Test for each method to find out where it goes wrong
         image = self.convert_rgb_to_grayscale(tf_frame)
         image = self.resize_frame(image, FRAME_HEIGHT, FRAME_WIDTH)
         image = self.normalize_frame(image)
+        image = tf.cast(image, dtype=tf.uint8)
+        
+        #plt.imshow(image)
+        #plt.show()
         return image
 
 
@@ -89,7 +97,7 @@ class Agent:
 
     def __init__(self, number_of_states, number_of_actions): #Initialize agent with a given memory capacity, and a state, and action space
         self.replay_memory_buffer = Memory(MEMORY_CAPACITY)
-        self.model = CNN() #TODO parameters
+        #self.model = CNN() #TODO parameters
         self.number_of_states = number_of_states
         self.number_of_actions = number_of_actions
         self.decay_rate = self.decay_exploration_rate()
@@ -101,13 +109,15 @@ class Agent:
     def e_greedy_policy(self, state):
         exploration_rate_threshold = random.uniform(0,1)
 
-        if exploration_rate_threshold > self.exploration_rate:
-            next_q_values = self.model.predict(state) #TODO parameters
-            best_action = tf.argmax(next_q_values,1)
-        else:
-            best_action = random.randint(0, self.number_of_actions-1)
+        return random.randint(0, self.number_of_actions-1)
+        #TODO replace random_action with e_greedy
+        # if exploration_rate_threshold > self.exploration_rate:
+        #     next_q_values = self.model.predict(state) #TODO parameters
+        #     best_action = tf.argmax(next_q_values,1)
+        # else:
+        #     best_action = random.randint(0, self.number_of_actions-1)
 
-        return best_action
+        # return best_action
     
     def choose_action(self, state): #choose an action. At the moment, a random action.
         return self.e_greedy_policy(state)
@@ -121,7 +131,7 @@ class Agent:
     
     def experience_replay(self):
         memory_batch = self.replay_memory_buffer.get_samples(MEMORY_BATCH_SIZE)
-        self.model.train(memory_batch)
+        #self.model.train(memory_batch)
 
 
 
@@ -142,13 +152,19 @@ class Environment:
         state = self.env.reset()
         total_reward = 0
 
-        while True:
-            self.env.render()
+        #need to  be while Trie
+        for i in range(1):
+            #self.env.render()
 
             action = agent.choose_action(state)
             next_state, reward, is_done, _ = self.env.step(action)
             preprocessed_next_state = self.frame_preprocessor.preprocess_frame(next_state)
-
+    
+            #print(preprocessed_next_state)
+            #greyscale_image = np.array([(g, g, g) for g in np.array(preprocessed_next_state)])
+            #plt.imshow(next_state)
+            #lt.show()
+            break
             # if is_done:
             #     next_state = None
             
@@ -176,5 +192,6 @@ agent = Agent(number_of_states, number_of_actions)
 # for episode in range(NUMBER_OF_EPISODES):
 #     env.run(agent)
 
-while True:
+#need to be while true
+for i in range(1):
     game.run(agent)
