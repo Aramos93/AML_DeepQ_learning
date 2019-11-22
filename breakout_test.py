@@ -1,5 +1,6 @@
 import gym
 import numpy as np
+import tensorflow as tf
 import random
 import matplotlib.image as mpimg
 import matplotlib.pyplot as plt
@@ -37,28 +38,64 @@ class Memory:
         return random.sample(self.samples, N)
 
 
+"""
+CNN CLASS
+"""
 
 
 """
 Agent takes actions and saves them to its memory, which is initialized with a given capacity
 """
+FRAME_SKIP = 4
+MIN_EXPLORATION_RATE = 0.1
+EXPLORATION_RATE = 1
+MAX_FRAMES_DECAYED = 1000/FRAME_SKIP #1 million in paper
+MEMORY_BATCH_SIZE = 32
 
 class Agent:
     steps = 0
+    exploration_rate = EXPLORATION_RATE
+     
+    def decay_exploration_rate(self):
+        decay_rate = (self.exploration_rate - MIN_EXPLORATION_RATE)/MAX_FRAMES_DECAYED
+        return decay_rate
 
     def __init__(self, number_of_states, number_of_actions): #Initialize agent with a given memory capacity, and a state, and action space
-        self.memory = Memory(MEMORY_CAPACITY)
+        self.replay_memory_buffer = Memory(MEMORY_CAPACITY)
+        self.model = CNN() #TODO parameters
         self.number_of_states = number_of_states
         self.number_of_actions = number_of_actions
+        self.decay_rate = self.decay_exploration_rate()
+    
+    
+   
+    # The behaviour policy during training was e-greedy with e annealed linearly
+    # from1.0 to 0.1 over the firstmillion frames, and fixed at 0.1 thereafter
+    def e_greedy_policy(self, state):
+        exploration_rate_threshold = random.uniform(0,1)
+
+        if exploration_rate_threshold > self.exploration_rate:
+            next_q_values = self.model.predict(state) #TODO parameters
+            best_action = tf.argmax(next_q_values,1)
+        else:
+            best_action = random.randint(0, self.number_of_actions-1)
+
+        return best_action
     
     def choose_action(self, state): #choose an action. At the moment, a random action.
-        return random.randint(0, self.number_of_actions-1)
+        return self.e_greedy_policy(state)
     
 
     def observe(self, sample):
-        self.memory.add(sample)
+        self.replay_memory_buffer.add(sample)
         self.steps += 1
+        self.exploration_rate = MIN_EXPLORATION_RATE if self.exploration_rate <= MIN_EXPLORATION_RATE else self.exploration_rate - self.decay_rate
+        
     
+    def experience_replay(self):
+        memory_batch = self.replay_memory_buffer.get_samples(MEMORY_BATCH_SIZE)
+        self.model.train(memory_batch)
+
 
 
 
@@ -82,10 +119,13 @@ class Environment:
             action = agent.choose_action(state)
             next_state, reward, is_done, _ = self.env.step(action)
 
-            if is_done:
-                next_state = None
+            # if is_done:
+            #     next_state = None
             
-            agent.observe((state, action, reward, next_state))
+            experience = (state, action, reward, next_state)
+            agent.observe(experience)
+            agent.experience_replay()
+
             state = next_state
             total_reward += reward
 
