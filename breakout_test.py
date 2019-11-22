@@ -8,14 +8,12 @@ import matplotlib.pyplot as plt
 # Uncomment line below to play the game as a human
 #play.play(env, zoom=3)
 
-# def to_grayscale(img):
-#     return np.mean(img, axis=2).astype(np.uint8)
 
-# def downsample(img):
-#     return img[::2, ::2]
+#Constants
+MEMORY_CAPACITY = 10000
+PROBLEM = 'BreakoutDeterministic-v4'
+NUMBER_OF_EPISODES = 10
 
-# def preprocess(img):
-#     return to_grayscale(downsample(img))
 
 
 
@@ -44,7 +42,6 @@ class Memory:
 """
 Agent takes actions and saves them to its memory, which is initialized with a given capacity
 """
-MEMORY_CAPACITY = 10000
 
 class Agent:
     steps = 0
@@ -98,13 +95,6 @@ class Environment:
         self.env.close()
         print(f"Total reward: {total_reward}")
 
-
-
-
-
-
-PROBLEM = 'BreakoutDeterministic-v4'
-NUMBER_OF_EPISODES = 10
 
 env = Environment(PROBLEM)
 
