@@ -81,7 +81,90 @@ class Memory:
 
 """
 CNN CLASS
+Architecture of DQN has 4 hidden layers:
+
+Input:  84 X 84 X 1 image (4 in paper due to fram skipping) (PREPROCESSED image), Game-score, Life count, Actions_count (4)
+1st Hidden layer: Convolves 32 filters of 8 X 8 with stride 4 (relu)
+2nd hidden layer: Convolves 64 filters of 4 X 4 with stride 2 (relu)
+3rd hidden layer: Convolves 64 filters of 3 X 3 with stride 1 (Relu)
+4th hidden layer: Fully connected, (512 relu units)
+Output: Fully connected linear layer, Seperate output unit for each action, outputs are predicted Q-values
 """
+(IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_DEPTH) =  84, 84, 1 #TODO: Do we need the last dimension?
+FILTER_COUNT_1, FILTER_SIZE_1, FILTER_STRIDE_1 = 32, 8, 4
+FILTER_COUNT_2, FILTER_SIZE_2, FILTER_STRIDE_2 = 64, 4, 2
+FILTER_COUNT_3, FILTER_SIZE_3, FILTER_STRIDE_3 = 64, 3, 1
+DENSE_UNIT_COUNT = 512
+OUTPUT_UNIT_COUNT = 4 #TODO: GET Action count from constructor
+HIDDEN_ACTIVATION = 'relu'
+OUTPUT_ACTIVATION = 'linear'
+PADDING = "SAME"
+LEAKY_RELU_ALPHA = 0.2
+WEIGHT_INITIALIZOR = tf.initializers.TruncatedNormal()
+
+class CNN:
+
+    def __init__(self, number_of_states, number_of_actions):
+        self.number_of_states = number_of_states
+        self.number_of_actions = number_of_actions
+    
+    def convolutional_layer(self, input, filters, stride_size):
+        output = tf.nn.conv2d(input, filters, stride_size, padding=PADDING) #TODO: what is padding in paper?
+        activation = tf.nn.leaky_relu(output, LEAKY_RELU_ALPHA) #TODO: paper uses relu
+        return activation
+
+    def maxpool_layer(self, input, pool_size, stride_size):
+        return tf.nn.max_pool2d(input, pool_size, stride_size, padding=PADDING) #TODO: size ok?
+    
+    #TODO: Consider dropout: return tf.nn.dropout(dense_activation, rate=0.5)
+    def dense_layer(self, input, weights):
+        output = tf.matmul(input, weights)
+        dense_activation = tf.nn.leaky_relu(output, LEAKY_RELU_ALPHA)
+        return dense_activation
+
+    def output_layer(self, input, weights, bias):
+        output = tf.matmul(input, weights) + bias
+        return output
+
+    """
+    FILTER_COUNT_1, FILTER_SIZE_1, FILTER_STRIDE_1 = 32, 8, 4
+    FILTER_COUNT_2, FILTER_SIZE_2, FILTER_STRIDE_2 = 64, 4, 2
+    FILTER_COUNT_3, FILTER_SIZE_3, FILTER_STRIDE_3 = 64, 3, 1
+    """
+    def create_model(self, input):
+        #4D: filter_height, filter_width, in_channels, out_channels 
+        filter1 = [FILTER_SIZE_1, FILTER_SIZE_1, FILTER_COUNT_1, FILTER_COUNT_1]
+        filter2 = [FILTER_SIZE_2, FILTER_SIZE_2, FILTER_COUNT_1, FILTER_COUNT_2]
+        filter3 = [FILTER_SIZE_3, FILTER_SIZE_3, FILTER_COUNT_2, FILTER_COUNT_3] 
+
+        #TODO: Maxpool and flatten before dense layer
+        filter_weights_1 = tf.Variable(WEIGHT_INITIALIZOR(shape=filter1), dtype=tf.float32)
+        filter_weights_2 = tf.Variable(WEIGHT_INITIALIZOR(shape=filter2), dtype=tf.float32)
+        filter_weights_3 = tf.Variable(WEIGHT_INITIALIZOR(shape=filter3), dtype=tf.float32)
+        
+        input = tf.cast(input, dtype=tf.uint8)
+
+        #TODO: Consider maxpool after each conv layer
+        conv1 = self.convolutional_layer(input, filter_weights_1, FILTER_STRIDE_1)
+        conv2 = self.convolutional_layer(conv1, filter_weights_2, FILTER_STRIDE_2)
+        conv3 = self.convolutional_layer(conv2, filter_weights_3, FILTER_STRIDE_3)
+        flattened_layer = tf.compat.v1.layers.flatten(conv3)
+        #flattened_layer = tf.reshape(conv3, shape=(tf.shape(conv3)[0], -1)) TODO: Consider using this flatten?
+
+        dense_weights_shape = tf.shape(flattened_layer)
+        dense_weights = tf.Variable(WEIGHT_INITIALIZOR(dense_weights_shape, dtype=tf.float32))
+
+        dense_layer = self.dense_layer(flattened_layer, dense_weights)
+
+        output_weights_shape = tf.shape(dense_layer) #TODO: DENSE UNIT COUNT 512
+        output_weights = tf.Variable(WEIGHT_INITIALIZOR(output_weights_shape, dtype=tf.float32))
+        bias = tf.zeros(OUTPUT_UNIT_COUNT)
+        output_layer = self.output_layer(dense_layer, output_weights, bias)
+
+        return output_layer
+
+
+
 
 
 """
@@ -103,7 +186,7 @@ class Agent:
 
     def __init__(self, number_of_states, number_of_actions): #Initialize agent with a given memory capacity, and a state, and action space
         self.replay_memory_buffer = Memory(MEMORY_CAPACITY)
-        #self.model = CNN() #TODO parameters
+        self.model = CNN(number_of_states, number_of_actions) #TODO parameters
         self.number_of_states = number_of_states
         self.number_of_actions = number_of_actions
         self.decay_rate = self.decay_exploration_rate()
@@ -193,6 +276,8 @@ game = Environment(PROBLEM)
 number_of_states = game.env.observation_space.shape
 number_of_actions = game.env.action_space.n
 
+print(number_of_states)
+print(number_of_actions)
 agent = Agent(number_of_states, number_of_actions)
 
 # for episode in range(NUMBER_OF_EPISODES):
