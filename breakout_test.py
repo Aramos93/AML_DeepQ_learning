@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 print(tf.__version__)  # for Python 2
 
 # Constants
-MEMORY_CAPACITY = 10000 # TODO: 1000000 in paper divided by 4 in our case due to frame skip
+MEMORY_CAPACITY = 10000  # TODO: 1000000 in paper divided by 4 in our case due to frame skip
 PROBLEM = 'BreakoutDeterministic-v4'
 NUMBER_OF_EPISODES = 10
 
@@ -181,7 +181,7 @@ class ConvolutionalNeuralNetwork:
     def train_step_optimization(self, inputs, outputs):
         # Wrap computation inside a GradientTape for automatic differentiation
         with tf.GradientTape() as tape:
-            predictions = self.convolutional_neural_network(inputs)
+            predictions = self.predict(inputs)
             loss = self.huber_error_loss(predictions, outputs)
 
         # Trainable variables to update
@@ -194,14 +194,7 @@ class ConvolutionalNeuralNetwork:
 
         print(tf.reduce_mean(loss))
 
-    # TODO: is prediction correct? 
-    def predict(self, states, actions, rewards, is_done):
-        next_q_values = self.model([states, np.ones(actions.shape)])
-        next_q_values[is_done] = 0  # reset all Q values to 0 if game is done
-        q_values = rewards + DISCOUNT_FACTOR * tf.maximum(next_q_values, axis=1)
-        return q_values
-
-    def convolutional_neural_network(self, inputs):
+    def predict(self, inputs):
 
         # Input shape: [1, 84, 84, 1]. A batch of 84x84x1 (grayscale) images.
         inputs = tf.reshape(inputs, shape=[-1, IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH, IMAGE_INPUT_CHANNELS])
