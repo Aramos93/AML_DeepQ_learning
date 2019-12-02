@@ -274,10 +274,9 @@ class Agent:
     def experience_replay(self):
         memory_batch = self.replay_memory_buffer.get_samples(MEMORY_BATCH_SIZE)
         for (state, action, reward, next_state, is_done) in memory_batch:
-            target = self.model.predict(next_state)
-            if target is None:
-                target = 0  # TODO: should this we changed?
-            self.model.train(next_state, outputs=target)  # TODO: initial state not preprocessed
+            if next_state is not None:  # TODO: should we replace next_state by value?
+                target = self.model.predict(next_state)  # TODO: q network
+                self.model.train(next_state, outputs=target)  # TODO: initial state not preprocessed
 
     def get_replay_memory(self):
         return self.replay_memory_buffer
