@@ -9,14 +9,15 @@ import matplotlib.pyplot as plt
 # play.play(env, zoom=3)
 
 # Agent and memory constants
-MEMORY_CAPACITY = 10000  # TODO: 1000000 in paper divided by 4 in our case due to frame skip
 PROBLEM = 'BreakoutDeterministic-v4'
-NUMBER_OF_EPISODES = 100
 FRAME_SKIP = 4
-MIN_EXPLORATION_RATE = 0.1
-EXPLORATION_RATE = 1
-MAX_FRAMES_DECAYED = 1000/FRAME_SKIP  # 1 million in paper
 MEMORY_BATCH_SIZE = 32
+REPLAY_MEMORY_SIZE = 1000000  # RMSProp updates samples from this number of recent frames
+NUMBER_OF_EPISODES = 100
+EXPLORATION_RATE = 1
+MIN_EXPLORATION_RATE = 0.1
+MAX_FRAMES_DECAYED = 1000000 / FRAME_SKIP  # 1 million in paper
+REPLAY_START_SIZE = 50000
 
 # CNN Constants
 IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH, IMAGE_INPUT_CHANNELS = 84, 84, 1
@@ -29,8 +30,7 @@ HUBER_LOSS_DELTA, DISCOUNT_FACTOR = 2.0, 0.99  # TODO: is value 1 or 2 in paper 
 RANDOM_WEIGHT_INITIALIZER = tf.initializers.RandomNormal()
 HIDDEN_ACTIVATION, OUTPUT_ACTIVATION, PADDING = 'relu', 'linear', "SAME"  # TODO: remove?
 LEAKY_RELU_ALPHA, DROPOUT_RATE = 0.2, 0.5  # TODO: remove or use to improve paper
-optimizer = tf.optimizers.RMSprop(learning_rate=LEARNING_RATE, rho=0.9,
-                                  momentum=GRADIENT_MOMENTUM, epsilon=MIN_SQUARED_GRADIENT)
+optimizer = tf.optimizers.RMSprop(learning_rate=LEARNING_RATE, rho=GRADIENT_MOMENTUM, epsilon=MIN_SQUARED_GRADIENT)
 
 
 class FramePreprocessor:
@@ -48,23 +48,22 @@ class FramePreprocessor:
         return tf.image.resize(tf_frame, [frame_height,frame_width], method=tf.image.ResizeMethod.NEAREST_NEIGHBOR)
 
     def normalize_frame(self, tf_frame):
-        return tf_frame/255
+        return tf_frame / 255
 
     def plot_frame_from_greyscale_values(self, image):
         height, width, _ = image.shape 
         grey_image = np.array([[(image[i, j].numpy()[0], image[i, j].numpy()[0], image[i, j].numpy()[0]) 
-                               for i in range(height)] 
-                               for j in range(width)])                    
-        grey_image = np.transpose(grey_image, (1, 0, 2)) # Switch height and width 
+                                for i in range(height)]
+                                for j in range(width)])
+        grey_image = np.transpose(grey_image, (1, 0, 2))  # Switch height and width
         plt.imshow(grey_image) 
         plt.show()
 
     def preprocess_frame(self, frame):
-        tf_frame = tf.Variable(frame, shape=self.state_space, dtype=tf.uint8)
+        tf_frame = tf.Variable(frame, shape=self.state_space, dtype=tf.float32)  # TODO: uint8 does not work
         image = self.convert_rgb_to_grayscale(tf_frame)
         image = self.resize_frame(image, IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH)
         image = self.normalize_frame(image)
-        image = tf.cast(image, dtype=tf.uint8)
 
         return image
 
@@ -87,6 +86,9 @@ class Memory:
     def get_samples(self, sample_size):  # Return n samples from the memory
         sample_size = min(sample_size, len(self.samples))
         return random.sample(self.samples, sample_size)
+
+    def get_size(self):
+        return len(self.samples)
 
 
 class ConvolutionalNeuralNetwork:
@@ -141,7 +143,7 @@ class ConvolutionalNeuralNetwork:
 
     @tf.function
     def convolutional_2d_layer(self, inputs, filter_weights, biases, strides=1):
-        strides = [1, strides, strides, 1]
+        # strides = [1, strides, strides, 1]
         output = tf.nn.conv2d(inputs, filter_weights, strides, padding=PADDING)  # TODO: padding in paper?
         output_with_bias = tf.nn.bias_add(output, biases)
         activation = tf.nn.relu(output_with_bias)  # non-linearity TODO: improve paper with leaky relu?
@@ -198,15 +200,14 @@ class ConvolutionalNeuralNetwork:
         # Update weights and biases following gradients
         optimizer.apply_gradients(zip(gradients, trainable_variables))
 
-        print(tf.reduce_mean(current_loss))
+        print(current_loss)
 
     @tf.function
     def predict(self, inputs):
 
-        print(inputs)
-        # Input shape: [1, 84, 84, 1]. A batch of 84x84x1 (grayscale) images.
-        inputs = tf.reshape(tf.cast(inputs, dtype=tf.float32), shape=[-1, IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH, IMAGE_INPUT_CHANNELS])
-        print(inputs)
+        # Input shape: [1, 84, 84, 1]. A batch of 84x84x1 (gray scale) images.
+        inputs = tf.cast(inputs, dtype=tf.float32)
+        inputs = tf.reshape(inputs, shape=[-1, IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH, IMAGE_INPUT_CHANNELS])
 
         # Convolution Layer 1 with output shape [-1, 84, 84, 32]
         conv1 = self.convolutional_2d_layer(inputs, self.weights['conv1_weights'], self.biases['conv1_biases'])
@@ -239,14 +240,14 @@ class Agent:
 
     # Initialize agent with a given memory capacity, and a state, and action space
     def __init__(self, number_of_states, number_of_actions):
-        self.replay_memory_buffer = Memory(MEMORY_CAPACITY)
+        self.replay_memory_buffer = Memory(REPLAY_MEMORY_SIZE)
         self.model = ConvolutionalNeuralNetwork(number_of_states, number_of_actions)  # TODO parameters
         self.number_of_states = number_of_states
         self.number_of_actions = number_of_actions
         self.decay_rate = self.decay_exploration_rate()
    
     # The behaviour policy during training was e-greedy with e annealed linearly
-    # from1.0 to 0.1 over the first million frames, and fixed at 0.1 thereafter
+    # from 1.0 to 0.1 over the first million frames, and fixed at 0.1 thereafter
     def e_greedy_policy(self, state):
         exploration_rate_threshold = random.uniform(0, 1)
 
@@ -262,7 +263,10 @@ class Agent:
         return random.randint(0, self.number_of_actions-1)
 
     def choose_action(self, state):
-        return self.e_greedy_policy(state)
+        if self.replay_memory_buffer.get_size() <= REPLAY_START_SIZE:
+            return self.random_policy()
+        else:
+            return self.e_greedy_policy(state)
 
     def observe(self, sample):
         self.replay_memory_buffer.add(sample)
@@ -274,7 +278,7 @@ class Agent:
     def experience_replay(self):
         memory_batch = self.replay_memory_buffer.get_samples(MEMORY_BATCH_SIZE)
         for (state, action, reward, next_state, is_done) in memory_batch: 
-            self.model.train(state, outputs=self.model.predict(state))  # TODO: initial state not preprocessed
+            self.model.train(next_state, outputs=self.model.predict(next_state))  # TODO: initial state not preprocessed
 
 
 class Environment:
@@ -288,15 +292,15 @@ class Environment:
         self.frame_preprocessor = FramePreprocessor(self.state_space)
 
     def run(self, agent):
-        state = self.frame_preprocessor.preprocess_frame(self.gym.reset())
+        state = self.gym.reset()
         total_reward = 0
 
-        while True:
-            self.gym.render()
+        for i in range(REPLAY_MEMORY_SIZE):
+            # self.gym.render()
             action = agent.choose_action(state)
             next_state, reward, is_done, _ = self.gym.step(action)
-            next_state = self.frame_preprocessor.preprocess_frame(next_state)
-            # self.frame_preprocessor.plot_frame_from_greyscale_values(preprocessed_next_state)
+            preprocessed_next_state = self.frame_preprocessor.preprocess_frame(next_state)
+            self.frame_preprocessor.plot_frame_from_greyscale_values(preprocessed_next_state)
 
             if is_done:
                 next_state = None
@@ -316,11 +320,11 @@ class Environment:
 
 
 environment = Environment(PROBLEM)
-
 number_of_states = environment.gym.observation_space.shape
 number_of_actions = environment.gym.action_space.n
 dqn_agent = Agent(number_of_states, number_of_actions)
 
+NUMBER_OF_EPISODES = 1
 for episode in range(NUMBER_OF_EPISODES):
     environment.run(dqn_agent)
 
