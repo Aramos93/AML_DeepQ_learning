@@ -12,12 +12,13 @@ import matplotlib.pyplot as plt
 PROBLEM = 'BreakoutDeterministic-v4'
 FRAME_SKIP = 4
 MEMORY_BATCH_SIZE = 32
-REPLAY_START_SIZE = 10  # TODO: 50000
-REPLAY_MEMORY_SIZE = 100  # TODO: 1000000 RMSProp updates samples from this number of recent frames
-NUMBER_OF_EPISODES = 1  # TODO: increase episodes
+REPLAY_START_SIZE = 50000
+REPLAY_MEMORY_SIZE = 1000000  # RMSProp train updates sampled from this number of recent frames
+NUMBER_OF_EPISODES = 20  # TODO: save and restore model with infinite episodes
+NUMBER_OF_STEPS_PER_EPISODE = 5000000
 EXPLORATION_RATE = 1
 MIN_EXPLORATION_RATE = 0.1
-MAX_FRAMES_DECAYED = 1000000 / FRAME_SKIP  # 1 million in paper
+MAX_FRAMES_DECAYED = REPLAY_MEMORY_SIZE / FRAME_SKIP  # TODO: correct? 1 million in paper
 
 # CNN Constants
 IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH, IMAGE_INPUT_CHANNELS = 84, 84, 1
@@ -183,7 +184,7 @@ class ConvolutionalNeuralNetwork:
 
             loss = tf.where(condition, l2_squared_loss, l1_absolute_loss)
 
-            return tf.reduce_mean(loss)
+            return loss
 
     @tf.function
     def train(self, inputs, outputs):  # Optimization
@@ -200,7 +201,7 @@ class ConvolutionalNeuralNetwork:
         # Update weights and biases following gradients
         optimizer.apply_gradients(zip(gradients, trainable_variables))
 
-        # tf.print(current_loss)
+        # tf.print(tf.reduce_mean(current_loss))
 
     @tf.function
     def predict(self, inputs):
@@ -234,7 +235,7 @@ class Agent:
     exploration_rate = EXPLORATION_RATE
      
     def decay_exploration_rate(self):
-        decay_rate = (self.exploration_rate - MIN_EXPLORATION_RATE)/MAX_FRAMES_DECAYED
+        decay_rate = (self.exploration_rate - MIN_EXPLORATION_RATE) / MAX_FRAMES_DECAYED
         return decay_rate
 
     # Initialize agent with a given memory capacity, and a state, and action space
@@ -284,6 +285,8 @@ class Agent:
         return self.replay_memory_buffer
 
 
+REPLAY_START_SIZE = 100
+
 class Environment:
     """
     Creates a game environment which an agent can play using certain actions.
@@ -294,34 +297,41 @@ class Environment:
         self.state_space = self.gym.observation_space.shape
         self.frame_preprocessor = FramePreprocessor(self.state_space)
 
+    # Clip positive rewards to 1 and negative rewards to -1
+    def clip_reward(self, reward):
+        return np.sign(reward)
+
     def run(self, agent):
         state = self.gym.reset()
         total_reward = 0
+        step = 0
 
-        for step in range(REPLAY_MEMORY_SIZE):  # 1 million steps in one episode
-            print(f"Step: {step}")
+        while True:
             action = agent.choose_action(state)
             next_state, reward, is_done, _ = self.gym.step(action)
             preprocessed_next_state = self.frame_preprocessor.preprocess_frame(next_state)
-            # self.frame_preprocessor.plot_frame_from_greyscale_values(preprocessed_next_state)
+            reward = self.clip_reward(reward)
 
             if is_done:
+                print(f"Finished game after {step} steps")
                 next_state = None
             
             experience = (state, action, reward, preprocessed_next_state, is_done)
             agent.observe(experience)
             if REPLAY_START_SIZE < step:  # Learn after 50.000 random actions in memory
                 agent.experience_replay()
-                # self.gym.render()
+                self.gym.render()
+                # self.frame_preprocessor.plot_frame_from_greyscale_values(preprocessed_next_state)
 
             state = next_state
             total_reward += reward
+            step += 1
 
             if is_done:
                 break
 
         self.gym.close()
-        print(f"Total reward: {total_reward}")
+        print(f"Total reward: {total_reward} \n")
 
 
 environment = Environment(PROBLEM)
@@ -330,6 +340,6 @@ number_of_actions = environment.gym.action_space.n
 dqn_agent = Agent(number_of_states, number_of_actions)
 
 for episode in range(NUMBER_OF_EPISODES):
-    print(f"Episode: {episode}")
+    print(f"Episode: {episode+1}")
     environment.run(dqn_agent)
 
