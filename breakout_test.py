@@ -25,7 +25,7 @@ CONV2_NUM_FILTERS, CONV2_FILTER_SIZE, CONV2_FILTER_STRIDES = 64, 4, 2
 CONV3_NUM_FILTERS, CONV3_FILTER_SIZE, CONV3_FILTER_STRIDES = 64, 3, 1
 DENSE_NUM_UNITS, OUTPUT_NUM_UNITS = 512, 4  # TODO: GET Action count from constructor
 LEARNING_RATE, GRADIENT_MOMENTUM, MIN_SQUARED_GRADIENT = 0.00025, 0.95, 0.01
-HUBER_LOSS_DELTA, DISCOUNT_FACTOR = 2.0, 0.99  # TODO: is value 1 or 2 in paper?
+HUBER_LOSS_DELTA, DISCOUNT_FACTOR = 2.0, 0.99  # TODO: is value 1 or 2 in paper for Huber?
 RANDOM_WEIGHT_INITIALIZER = tf.initializers.RandomNormal()
 HIDDEN_ACTIVATION, OUTPUT_ACTIVATION, PADDING = 'relu', 'linear', "SAME"  # TODO: remove?
 LEAKY_RELU_ALPHA, DROPOUT_RATE = 0.2, 0.5  # TODO: remove or use to improve paper
@@ -275,7 +275,7 @@ class Agent:
     def experience_replay(self):
         memory_batch = self.replay_memory_buffer.get_samples(MEMORY_BATCH_SIZE)
         for (state, action, reward, next_state, is_done) in memory_batch: 
-            self.model.train(next_state, outputs=self.model.predict(next_state))  # TODO: state is not initially preprocessed
+            self.model.train(next_state, outputs=self.model.predict(next_state))  # TODO: initial state not preprocessed
 
 
 class Environment:
@@ -284,23 +284,20 @@ class Environment:
     Run takes an agent as argument that plays the game, until the agent 'dies' (no more lives)
     """
     def __init__(self, problem):
-        self.env = gym.make(problem)
-        self.state_space = self.env.observation_space.shape
+        self.gym = gym.make(problem)
+        self.state_space = self.gym.observation_space.shape
         self.frame_preprocessor = FramePreprocessor(self.state_space)
 
     def run(self, agent):
-        state = self.env.reset()
+        state = self.gym.reset()
         total_reward = 0
 
-        # while True:
-        for i in range(1):
-            # self.env.render()
+        while True:
+            self.gym.render()
             action = agent.choose_action(state)
-            next_state, reward, is_done, _ = self.env.step(action)
+            next_state, reward, is_done, _ = self.gym.step(action)
             preprocessed_next_state = self.frame_preprocessor.preprocess_frame(next_state)
             # self.frame_preprocessor.plot_frame_from_greyscale_values(preprocessed_next_state)
-
-            # break
 
             if is_done:
                 next_state = None
@@ -315,19 +312,16 @@ class Environment:
             if is_done:
                 break
 
-        self.env.close()
+        self.gym.close()
         print(f"Total reward: {total_reward}")
 
 
-game = Environment(PROBLEM)
+environment = Environment(PROBLEM)
 
-number_of_states = game.env.observation_space.shape
-number_of_actions = game.env.action_space.n
+number_of_states = environment.gym.observation_space.shape
+number_of_actions = environment.gym.action_space.n
 dqn_agent = Agent(number_of_states, number_of_actions)
 
-# for episode in range(NUMBER_OF_EPISODES):
-#     env.run(agent)
+for episode in range(NUMBER_OF_EPISODES):
+    environment.run(dqn_agent)
 
-# while True:
-for i in range(1):
-    game.run(dqn_agent)
