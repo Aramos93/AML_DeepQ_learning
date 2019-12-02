@@ -301,7 +301,7 @@ class Environment:
         return np.sign(reward)
 
     def run(self, agent):
-        state = self.frame_preprocessor(self.gym.reset())
+        state = self.frame_preprocessor.preprocess_frame(self.gym.reset())
         total_reward = 0
         step = 0
 
