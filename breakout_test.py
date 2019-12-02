@@ -249,7 +249,7 @@ class Agent:
 
         if exploration_rate_threshold > self.exploration_rate:
             next_q_values = self.model.predict(state)  # TODO: return only 4 actions not 784 x 4 !!!
-            best_action = tf.argmax(next_q_values, 1)
+            best_action = tf.argmax(next_q_values[0], 1)
             print(best_action.shape)
         else:
             best_action = self.random_policy() 
