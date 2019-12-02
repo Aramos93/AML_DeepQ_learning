@@ -7,12 +7,31 @@ import matplotlib.pyplot as plt
 # Uncomment line below to play the game as a human
 # from gym.utils import play
 # play.play(env, zoom=3)
-print(tf.__version__)  # for Python 2
 
-# Constants
+# Agent and memory constants
 MEMORY_CAPACITY = 10000  # TODO: 1000000 in paper divided by 4 in our case due to frame skip
 PROBLEM = 'BreakoutDeterministic-v4'
 NUMBER_OF_EPISODES = 10
+FRAME_SKIP = 4
+MIN_EXPLORATION_RATE = 0.1
+EXPLORATION_RATE = 1
+MAX_FRAMES_DECAYED = 1000/FRAME_SKIP  # 1 million in paper
+MEMORY_BATCH_SIZE = 32
+
+# CNN Constants
+IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH, IMAGE_INPUT_CHANNELS = 84, 84, 1
+CONV1_NUM_FILTERS, CONV1_FILTER_SIZE, CONV1_FILTER_STRIDES = 32, 8, 4
+CONV2_NUM_FILTERS, CONV2_FILTER_SIZE, CONV2_FILTER_STRIDES = 64, 4, 2
+CONV3_NUM_FILTERS, CONV3_FILTER_SIZE, CONV3_FILTER_STRIDES = 64, 3, 1
+DENSE_NUM_UNITS, OUTPUT_NUM_UNITS = 512, 4  # TODO: GET Action count from constructor
+LEARNING_RATE, GRADIENT_MOMENTUM, MIN_SQUARED_GRADIENT = 0.00025, 0.95, 0.01
+HUBER_LOSS_DELTA, DISCOUNT_FACTOR = 2.0, 0.99  # TODO: is value 1 or 2 in paper?
+RANDOM_WEIGHT_INITIALIZER = tf.initializers.RandomNormal()
+HIDDEN_ACTIVATION, OUTPUT_ACTIVATION, PADDING = 'relu', 'linear', "SAME"  # TODO: remove?
+LEAKY_RELU_ALPHA, DROPOUT_RATE = 0.2, 0.5  # TODO: remove or use to improve paper
+optimizer = tf.optimizers.RMSprop(learning_rate=LEARNING_RATE, rho=0.9,
+                                  momentum=GRADIENT_MOMENTUM, epsilon=MIN_SQUARED_GRADIENT)
+
 
 class FramePreprocessor:
     """
@@ -44,7 +63,6 @@ class FramePreprocessor:
         tf_frame = tf.Variable(frame, shape=self.state_space, dtype=tf.uint8)
         image = self.convert_rgb_to_grayscale(tf_frame)
         image = self.resize_frame(image, IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH)
-        self.plot_frame_from_greyscale_values(image)
         image = self.normalize_frame(image)
         image = tf.cast(image, dtype=tf.uint8)
 
@@ -71,64 +89,51 @@ class Memory:
         return random.sample(self.samples, sample_size)
 
 
-"""
-CNN CLASS
-Architecture of DQN has 4 hidden layers:
-
-Input:  84 X 84 X 1 image (4 in paper due to frame skipping) (PREPROCESSED image), Game-score, Life count, Actions_count (4)
-1st Hidden layer: Convolves 32 filters of 8 X 8 with stride 4 (relu)
-2nd hidden layer: Convolves 64 filters of 4 X 4 with stride 2 (relu)
-3rd hidden layer: Convolves 64 filters of 3 X 3 with stride 1 (Relu)
-4th hidden layer: Fully connected, (512 relu units)
-Output: Fully connected linear layer, Separate output unit for each action, outputs are predicted Q-values
-"""
-IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH, IMAGE_INPUT_CHANNELS = 84, 84, 1
-CONV1_NUM_FILTERS, CONV1_FILTER_SIZE, CONV1_FILTER_STRIDES = 32, 8, 4
-CONV2_NUM_FILTERS, CONV2_FILTER_SIZE, CONV2_FILTER_STRIDES = 64, 4, 2
-CONV3_NUM_FILTERS, CONV3_FILTER_SIZE, CONV3_FILTER_STRIDES = 64, 3, 1
-DENSE_NUM_UNITS, OUTPUT_NUM_UNITS = 512, 4  # TODO: GET Action count from constructor
-LEARNING_RATE, GRADIENT_MOMENTUM, MIN_SQUARED_GRADIENT = 0.00025, 0.95, 0.01
-HUBER_LOSS_DELTA, DISCOUNT_FACTOR = 2.0, 0.99  # TODO: is value 1 or 2 in paper?
-RANDOM_WEIGHT_INITIALIZER = tf.initializers.RandomNormal()
-HIDDEN_ACTIVATION, OUTPUT_ACTIVATION, PADDING = 'relu', 'linear', "SAME"  # TODO: remove?
-LEAKY_RELU_ALPHA, DROPOUT_RATE = 0.2, 0.5  # TODO: remove or use to improve paper
-optimizer = tf.optimizers.RMSprop(learning_rate=LEARNING_RATE, rho=0.9,
-                                  momentum=GRADIENT_MOMENTUM, epsilon=MIN_SQUARED_GRADIENT)
-
-weights = {
-    # Conv Layer 1: 8x8 conv, 1 input (preprocessed image has 1 color channel), 32 output filters
-    'conv1_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV1_FILTER_SIZE,  # Filter width
-                                                            CONV1_FILTER_SIZE,  # Filter height
-                                                            IMAGE_INPUT_CHANNELS,  # In Channel
-                                                            CONV1_NUM_FILTERS])),  # Out Channel
-    # Conv Layer 2: 4x4 conv, 32 input filters, 64 output filters
-    'conv2_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV2_FILTER_SIZE,
-                                                            CONV2_FILTER_SIZE,
-                                                            CONV1_NUM_FILTERS,
-                                                            CONV2_NUM_FILTERS])),
-    # Conv Layer 3: 3x3 conv, 64 input filters, 64 output filters
-    'conv3_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV3_FILTER_SIZE,
-                                                            CONV3_FILTER_SIZE,
-                                                            CONV2_NUM_FILTERS,
-                                                            CONV3_NUM_FILTERS])),
-    # Fully Connected (Dense) Layer: 3x3x64 inputs (64 filters of size 3x3), 512 output units
-    'dense_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV3_FILTER_SIZE * CONV3_FILTER_SIZE * CONV3_NUM_FILTERS,
-                                                            DENSE_NUM_UNITS])),
-
-    # Output layer: 512 input units, 4 output units (actions)
-    'output_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([DENSE_NUM_UNITS, OUTPUT_NUM_UNITS]))
-}
-
-biases = {
-    'conv1_biases': tf.Variable(tf.zeros([CONV1_NUM_FILTERS])),  # 32
-    'conv2_biases': tf.Variable(tf.zeros([CONV2_NUM_FILTERS])),  # 64
-    'conv3_biases': tf.Variable(tf.zeros([CONV3_NUM_FILTERS])),  # 64
-    'dense_biases': tf.Variable(tf.zeros([DENSE_NUM_UNITS])),    # 512
-    'output_biases': tf.Variable(tf.zeros([OUTPUT_NUM_UNITS]))   # 4
-}
-
-
 class ConvolutionalNeuralNetwork:
+    """
+    CNN CLASS
+    Architecture of DQN has 4 hidden layers:
+
+    Input:  84 X 84 X 1 image (4 in paper due to frame skipping) (PREPROCESSED image), Game-score, Life count, Actions_count (4)
+    1st Hidden layer: Convolves 32 filters of 8 X 8 with stride 4 (relu)
+    2nd hidden layer: Convolves 64 filters of 4 X 4 with stride 2 (relu)
+    3rd hidden layer: Convolves 64 filters of 3 X 3 with stride 1 (Relu)
+    4th hidden layer: Fully connected, (512 relu units)
+    Output: Fully connected linear layer, Separate output unit for each action, outputs are predicted Q-values
+    """
+
+    weights = {
+        # Conv Layer 1: 8x8 conv, 1 input (preprocessed image has 1 color channel), 32 output filters
+        'conv1_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV1_FILTER_SIZE,  # Filter width
+                                                                CONV1_FILTER_SIZE,  # Filter height
+                                                                IMAGE_INPUT_CHANNELS,  # In Channel
+                                                                CONV1_NUM_FILTERS])),  # Out Channel
+        # Conv Layer 2: 4x4 conv, 32 input filters, 64 output filters
+        'conv2_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV2_FILTER_SIZE,
+                                                                CONV2_FILTER_SIZE,
+                                                                CONV1_NUM_FILTERS,
+                                                                CONV2_NUM_FILTERS])),
+        # Conv Layer 3: 3x3 conv, 64 input filters, 64 output filters
+        'conv3_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV3_FILTER_SIZE,
+                                                                CONV3_FILTER_SIZE,
+                                                                CONV2_NUM_FILTERS,
+                                                                CONV3_NUM_FILTERS])),
+        # Fully Connected (Dense) Layer: 3x3x64 inputs (64 filters of size 3x3), 512 output units
+        'dense_weights': tf.Variable(
+            RANDOM_WEIGHT_INITIALIZER([CONV3_FILTER_SIZE * CONV3_FILTER_SIZE * CONV3_NUM_FILTERS,
+                                       DENSE_NUM_UNITS])),
+
+        # Output layer: 512 input units, 4 output units (actions)
+        'output_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([DENSE_NUM_UNITS, OUTPUT_NUM_UNITS]))
+    }
+
+    biases = {
+        'conv1_biases': tf.Variable(tf.zeros([CONV1_NUM_FILTERS])),  # 32
+        'conv2_biases': tf.Variable(tf.zeros([CONV2_NUM_FILTERS])),  # 64
+        'conv3_biases': tf.Variable(tf.zeros([CONV3_NUM_FILTERS])),  # 64
+        'dense_biases': tf.Variable(tf.zeros([DENSE_NUM_UNITS])),  # 512
+        'output_biases': tf.Variable(tf.zeros([OUTPUT_NUM_UNITS]))  # 4
+    }
 
     def __init__(self, number_of_states, number_of_actions):
         self.number_of_states = number_of_states
@@ -149,7 +154,7 @@ class ConvolutionalNeuralNetwork:
 
     @tf.function
     def flatten_layer(self, layer, weights_name='dense_weights'):  # output shape: [-1, 3*3*64]
-        dimensions = weights[weights_name].get_shape().as_list()[0]
+        dimensions = self.weights[weights_name].get_shape().as_list()[0]
         flattened_layer = tf.reshape(layer, shape=(-1, dimensions))  # -1 flattens into 1-D
         return flattened_layer
 
@@ -178,50 +183,48 @@ class ConvolutionalNeuralNetwork:
 
             return tf.reduce_mean(loss)
 
-    def train_step_optimization(self, inputs, outputs):
+    @tf.function
+    def train(self, inputs, outputs):  # Optimization
         # Wrap computation inside a GradientTape for automatic differentiation
         with tf.GradientTape() as tape:
             predictions = self.predict(inputs)
-            loss = self.huber_error_loss(predictions, outputs)
+            current_loss = self.huber_error_loss(predictions, outputs)
 
         # Trainable variables to update
-        trainable_variables = weights.values() + biases.values()
+        trainable_variables = list(self.weights.values()) + list(self.biases.values())
 
-        gradients = tape.gradient(loss, trainable_variables)
+        gradients = tape.gradient(current_loss, trainable_variables)
 
         # Update weights and biases following gradients
         optimizer.apply_gradients(zip(gradients, trainable_variables))
 
-        print(tf.reduce_mean(loss))
+        print(tf.reduce_mean(current_loss))
 
+    @tf.function
     def predict(self, inputs):
 
+        print(inputs)
+        print(inputs.shape)
+
         # Input shape: [1, 84, 84, 1]. A batch of 84x84x1 (grayscale) images.
-        inputs = tf.reshape(inputs, shape=[-1, IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH, IMAGE_INPUT_CHANNELS])
+        inputs = tf.reshape(tf.cast(inputs, dtype=tf.float32), shape=[-1, IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH, IMAGE_INPUT_CHANNELS])
 
         # Convolution Layer 1 with output shape [-1, 84, 84, 32]
-        conv1 = self.convolutional_2d_layer(inputs, weights['conv1_weights'], biases['conv1_biases'])
+        conv1 = self.convolutional_2d_layer(inputs, self.weights['conv1_weights'], self.biases['conv1_biases'])
 
         # Convolutional Layer 2 with output shape [-1, 84, 84, 64]
-        conv2 = self.convolutional_2d_layer(conv1, weights['conv2_weights'], biases['conv2_biases'])
+        conv2 = self.convolutional_2d_layer(conv1, self.weights['conv2_weights'], self.biases['conv2_biases'])
 
         # Flatten output of 2nd conv. layer to fit dense layer input, output shape [-1, 3x3x64]
         flattened_layer = self.flatten_layer(layer=conv2, weights_name='dense_weights')
 
         # Dense fully connected layer with output shape [-1, 512]
-        dense_layer = self.dense_layer(flattened_layer, weights['dense_weights'], biases=biases['dense_biases'])
+        dense_layer = self.dense_layer(flattened_layer, self.weights['dense_weights'], biases=self.biases['dense_biases'])
 
         # Fully connected output of shape [-1, 4]
-        output_layer = self.output_layer(dense_layer, weights['output_weights'], biases=biases['output_biases'])
+        output_layer = self.output_layer(dense_layer, self.weights['output_weights'], biases=self.biases['output_biases'])
 
         return output_layer
-
-
-FRAME_SKIP = 4
-MIN_EXPLORATION_RATE = 0.1
-EXPLORATION_RATE = 1
-MAX_FRAMES_DECAYED = 1000/FRAME_SKIP  # 1 million in paper
-MEMORY_BATCH_SIZE = 32
 
 
 class Agent:
@@ -272,8 +275,7 @@ class Agent:
     def experience_replay(self):
         memory_batch = self.replay_memory_buffer.get_samples(MEMORY_BATCH_SIZE)
         for (state, action, reward, next_state, is_done) in memory_batch: 
-            self.model.train(current_state=state, next_state=next_state, action=action, reward=reward, is_done=is_done)
-        # self.model.train(memory_batch)
+            self.model.train(next_state, outputs=self.model.predict(next_state))  # TODO: state is not initially preprocessed
 
 
 class Environment:
@@ -290,19 +292,20 @@ class Environment:
         state = self.env.reset()
         total_reward = 0
 
-        # need to  be while True
+        # while True:
         for i in range(1):
             # self.env.render()
             action = agent.choose_action(state)
             next_state, reward, is_done, _ = self.env.step(action)
             preprocessed_next_state = self.frame_preprocessor.preprocess_frame(next_state)
+            # self.frame_preprocessor.plot_frame_from_greyscale_values(preprocessed_next_state)
 
-            break
+            # break
 
             if is_done:
                 next_state = None
             
-            experience = (state, action, reward, next_state)
+            experience = (state, action, reward, preprocessed_next_state, is_done)
             agent.observe(experience)
             agent.experience_replay()
 
@@ -320,14 +323,11 @@ game = Environment(PROBLEM)
 
 number_of_states = game.env.observation_space.shape
 number_of_actions = game.env.action_space.n
-
-print(number_of_states)
-print(number_of_actions)
-agent = Agent(number_of_states, number_of_actions)
+dqn_agent = Agent(number_of_states, number_of_actions)
 
 # for episode in range(NUMBER_OF_EPISODES):
 #     env.run(agent)
 
-# need to be while true
+# while True:
 for i in range(1):
-    game.run(agent)
+    game.run(dqn_agent)
