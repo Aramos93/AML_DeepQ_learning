@@ -206,8 +206,7 @@ class ConvolutionalNeuralNetwork:
     def predict(self, inputs):
 
         # Input shape: [1, 84, 84, 1]. A batch of 84x84x1 (gray scale) images.
-        inputs = tf.cast(inputs, dtype=tf.float32)
-        inputs = tf.reshape(inputs, shape=[-1, IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH, IMAGE_INPUT_CHANNELS])
+        inputs = tf.reshape(tf.cast(inputs, dtype=tf.float32), shape=[-1, IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH, IMAGE_INPUT_CHANNELS])
 
         # Convolution Layer 1 with output shape [-1, 84, 84, 32]
         conv1 = self.convolutional_2d_layer(inputs, self.weights['conv1_weights'], self.biases['conv1_biases'])
@@ -245,6 +244,7 @@ class Agent:
         self.number_of_states = number_of_states
         self.number_of_actions = number_of_actions
         self.decay_rate = self.decay_exploration_rate()
+        self.should_learn = False
    
     # The behaviour policy during training was e-greedy with e annealed linearly
     # from 1.0 to 0.1 over the first million frames, and fixed at 0.1 thereafter
@@ -280,6 +280,9 @@ class Agent:
         for (state, action, reward, next_state, is_done) in memory_batch: 
             self.model.train(next_state, outputs=self.model.predict(next_state))  # TODO: initial state not preprocessed
 
+    def get_replay_memory(self):
+        return self.replay_memory_buffer
+
 
 class Environment:
     """
@@ -295,19 +298,20 @@ class Environment:
         state = self.gym.reset()
         total_reward = 0
 
-        for i in range(REPLAY_MEMORY_SIZE):
+        for step in range(REPLAY_MEMORY_SIZE):  # 1 million steps in one episode
             # self.gym.render()
             action = agent.choose_action(state)
             next_state, reward, is_done, _ = self.gym.step(action)
             preprocessed_next_state = self.frame_preprocessor.preprocess_frame(next_state)
-            self.frame_preprocessor.plot_frame_from_greyscale_values(preprocessed_next_state)
+            # self.frame_preprocessor.plot_frame_from_greyscale_values(preprocessed_next_state)
 
             if is_done:
                 next_state = None
             
-            experience = (state, action, reward, next_state, is_done)
+            experience = (state, action, reward, preprocessed_next_state, is_done)
             agent.observe(experience)
-            agent.experience_replay()
+            if not step < REPLAY_START_SIZE:  # Learn after 50.000 random actions in memory
+                agent.experience_replay()
 
             state = next_state
             total_reward += reward
