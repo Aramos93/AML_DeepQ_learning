@@ -141,7 +141,7 @@ class ConvolutionalNeuralNetwork:
 
     @tf.function
     def convolutional_2d_layer(self, inputs, filter_weights, biases, strides=1):
-        # strides = [1, strides, strides, 1]
+        strides = [1, strides, strides, 1]
         output = tf.nn.conv2d(inputs, filter_weights, strides, padding=PADDING)  # TODO: padding in paper?
         output_with_bias = tf.nn.bias_add(output, biases)
         activation = tf.nn.relu(output_with_bias)  # non-linearity TODO: improve paper with leaky relu?
@@ -203,11 +203,10 @@ class ConvolutionalNeuralNetwork:
     @tf.function
     def predict(self, inputs):
 
-        print(inputs)
-        print(inputs.shape)
-
         # Input shape: [1, 84, 84, 1]. A batch of 84x84x1 (grayscale) images.
         inputs = tf.reshape(tf.cast(inputs, dtype=tf.float32), shape=[-1, IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH, IMAGE_INPUT_CHANNELS])
+
+        print(inputs.shape)
 
         # Convolution Layer 1 with output shape [-1, 84, 84, 32]
         conv1 = self.convolutional_2d_layer(inputs, self.weights['conv1_weights'], self.biases['conv1_biases'])

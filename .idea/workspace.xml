@@ -12,7 +12,7 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="CoverageDataManager">
-    <SUITE FILE_PATH="coverage/AML_Deep_Q_Learning$breakout_test.coverage" NAME="breakout_test Coverage Results" MODIFIED="1575296984891" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
+    <SUITE FILE_PATH="coverage/AML_Deep_Q_Learning$breakout_test.coverage" NAME="breakout_test Coverage Results" MODIFIED="1575297588820" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$" />
     <SUITE FILE_PATH="coverage/AML_Deep_Q_Learning$atari_env.coverage" NAME="atari_env Coverage Results" MODIFIED="1575217418648" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$USER_HOME$/venv/Code/lib/python3.7/site-packages/gym/envs/atari" />
   </component>
   <component name="FileEditorManager">
@@ -20,8 +20,8 @@
       <file leaf-file-name="breakout_test.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/breakout_test.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="-452">
-              <caret line="277" column="108" selection-start-line="277" selection-start-column="108" selection-end-line="277" selection-end-column="108" />
+            <state relative-caret-position="457">
+              <caret line="209" lean-forward="true" selection-start-line="209" selection-end-line="209" />
               <folding>
                 <element signature="e#0#10#0" expanded="true" />
               </folding>
@@ -47,6 +47,7 @@
       <find>static</find>
       <find>state</find>
       <find>inputs = tf.reshape</find>
+      <find>inputs = resh</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
@@ -68,7 +69,8 @@
   <component name="NodePackageJsonFileManager">
     <packageJsonPaths />
   </component>
-  <component name="ProjectFrameBounds" extendedState="6">
+  <component name="ProjectFrameBounds">
+    <option name="x" value="1280" />
     <option name="y" value="23" />
     <option name="width" value="1280" />
     <option name="height" value="1417" />
@@ -175,7 +177,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="23" width="2560" height="1417" extended-state="6" />
+    <frame x="1280" y="23" width="1280" height="1417" extended-state="0" />
     <editor active="true" />
     <layout>
       <window_info anchor="bottom" id="TODO" order="6" />
@@ -192,7 +194,7 @@
       <window_info anchor="bottom" id="Find" order="1" weight="0.32688013" />
       <window_info anchor="right" id="SciView" weight="0.32890624" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
-      <window_info anchor="bottom" id="Debug" order="3" weight="0.4" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.39985108" />
       <window_info id="Favorites" side_tool="true" />
       <window_info anchor="right" id="Commander" order="0" weight="0.4" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
@@ -208,6 +210,17 @@
   <component name="VcsContentAnnotationSettings">
     <option name="myLimit" value="2678400000" />
   </component>
+  <component name="XDebuggerManager">
+    <breakpoint-manager>
+      <default-breakpoints>
+        <breakpoint type="python-exception">
+          <properties notifyOnTerminate="true" exception="BaseException">
+            <option name="notifyOnTerminate" value="true" />
+          </properties>
+        </breakpoint>
+      </default-breakpoints>
+    </breakpoint-manager>
+  </component>
   <component name="editorHistoryManager">
     <entry file="file://$USER_HOME$/venv/Code/lib/python3.7/site-packages/gym/envs/atari/__init__.py">
       <provider selected="true" editor-type-id="text-editor" />
@@ -219,13 +232,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$USER_HOME$/venv/Code/lib/python3.7/site-packages/tensorflow_core/python/framework/func_graph.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="267">
-          <caret line="904" selection-start-line="904" selection-end-line="904" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$USER_HOME$/venv/Code/lib/python3.7/site-packages/tensorflow_core/python/eager/def_function.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="279">
@@ -233,10 +239,17 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$USER_HOME$/venv/Code/lib/python3.7/site-packages/tensorflow_core/python/framework/func_graph.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="267">
+          <caret line="906" selection-start-line="906" selection-end-line="906" />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/breakout_test.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-452">
-          <caret line="277" column="108" selection-start-line="277" selection-start-column="108" selection-end-line="277" selection-end-column="108" />
+        <state relative-caret-position="457">
+          <caret line="209" lean-forward="true" selection-start-line="209" selection-end-line="209" />
           <folding>
             <element signature="e#0#10#0" expanded="true" />
           </folding>
