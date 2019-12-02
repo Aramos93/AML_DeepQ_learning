@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 # Agent and memory constants
 MEMORY_CAPACITY = 10000  # TODO: 1000000 in paper divided by 4 in our case due to frame skip
 PROBLEM = 'BreakoutDeterministic-v4'
-NUMBER_OF_EPISODES = 10
+NUMBER_OF_EPISODES = 100
 FRAME_SKIP = 4
 MIN_EXPLORATION_RATE = 0.1
 EXPLORATION_RATE = 1
@@ -203,10 +203,10 @@ class ConvolutionalNeuralNetwork:
     @tf.function
     def predict(self, inputs):
 
+        print(inputs)
         # Input shape: [1, 84, 84, 1]. A batch of 84x84x1 (grayscale) images.
         inputs = tf.reshape(tf.cast(inputs, dtype=tf.float32), shape=[-1, IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH, IMAGE_INPUT_CHANNELS])
-
-        print(inputs.shape)
+        print(inputs)
 
         # Convolution Layer 1 with output shape [-1, 84, 84, 32]
         conv1 = self.convolutional_2d_layer(inputs, self.weights['conv1_weights'], self.biases['conv1_biases'])
@@ -274,7 +274,7 @@ class Agent:
     def experience_replay(self):
         memory_batch = self.replay_memory_buffer.get_samples(MEMORY_BATCH_SIZE)
         for (state, action, reward, next_state, is_done) in memory_batch: 
-            self.model.train(next_state, outputs=self.model.predict(next_state))  # TODO: initial state not preprocessed
+            self.model.train(state, outputs=self.model.predict(state))  # TODO: initial state not preprocessed
 
 
 class Environment:
@@ -288,20 +288,20 @@ class Environment:
         self.frame_preprocessor = FramePreprocessor(self.state_space)
 
     def run(self, agent):
-        state = self.gym.reset()
+        state = self.frame_preprocessor.preprocess_frame(self.gym.reset())
         total_reward = 0
 
         while True:
             self.gym.render()
             action = agent.choose_action(state)
             next_state, reward, is_done, _ = self.gym.step(action)
-            preprocessed_next_state = self.frame_preprocessor.preprocess_frame(next_state)
+            next_state = self.frame_preprocessor.preprocess_frame(next_state)
             # self.frame_preprocessor.plot_frame_from_greyscale_values(preprocessed_next_state)
 
             if is_done:
                 next_state = None
             
-            experience = (state, action, reward, preprocessed_next_state, is_done)
+            experience = (state, action, reward, next_state, is_done)
             agent.observe(experience)
             agent.experience_replay()
 
