@@ -12,9 +12,9 @@ import matplotlib.pyplot as plt
 PROBLEM = 'BreakoutDeterministic-v4'
 FRAME_SKIP = 4
 MEMORY_BATCH_SIZE = 32
-REPLAY_START_SIZE = 50000
-REPLAY_MEMORY_SIZE = 1000000  # RMSProp updates samples from this number of recent frames
-NUMBER_OF_EPISODES = 100
+REPLAY_START_SIZE = 10  # TODO: 50000
+REPLAY_MEMORY_SIZE = 100  # TODO: 1000000 RMSProp updates samples from this number of recent frames
+NUMBER_OF_EPISODES = 1  # TODO: increase episodes
 EXPLORATION_RATE = 1
 MIN_EXPLORATION_RATE = 0.1
 MAX_FRAMES_DECAYED = 1000000 / FRAME_SKIP  # 1 million in paper
@@ -200,7 +200,7 @@ class ConvolutionalNeuralNetwork:
         # Update weights and biases following gradients
         optimizer.apply_gradients(zip(gradients, trainable_variables))
 
-        print(f"Current Loss: {current_loss}")
+        # tf.print(current_loss)
 
     @tf.function
     def predict(self, inputs):
@@ -299,6 +299,7 @@ class Environment:
         total_reward = 0
 
         for step in range(REPLAY_MEMORY_SIZE):  # 1 million steps in one episode
+            print(f"Step: {step}")
             action = agent.choose_action(state)
             next_state, reward, is_done, _ = self.gym.step(action)
             preprocessed_next_state = self.frame_preprocessor.preprocess_frame(next_state)
@@ -329,5 +330,6 @@ number_of_actions = environment.gym.action_space.n
 dqn_agent = Agent(number_of_states, number_of_actions)
 
 for episode in range(NUMBER_OF_EPISODES):
+    print(f"Episode: {episode}")
     environment.run(dqn_agent)
 
