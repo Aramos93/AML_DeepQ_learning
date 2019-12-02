@@ -15,7 +15,6 @@ MEMORY_BATCH_SIZE = 32
 REPLAY_START_SIZE = 50000
 REPLAY_MEMORY_SIZE = 1000000  # RMSProp train updates sampled from this number of recent frames
 NUMBER_OF_EPISODES = 20  # TODO: save and restore model with infinite episodes
-NUMBER_OF_STEPS_PER_EPISODE = 5000000
 EXPLORATION_RATE = 1
 MIN_EXPLORATION_RATE = 0.1
 MAX_FRAMES_DECAYED = REPLAY_MEMORY_SIZE / FRAME_SKIP  # TODO: correct? 1 million in paper
@@ -122,9 +121,7 @@ class ConvolutionalNeuralNetwork:
                                                                 CONV2_NUM_FILTERS,
                                                                 CONV3_NUM_FILTERS])),
         # Fully Connected (Dense) Layer: 3x3x64 inputs (64 filters of size 3x3), 512 output units
-        'dense_weights': tf.Variable(
-            RANDOM_WEIGHT_INITIALIZER([CONV3_FILTER_SIZE * CONV3_FILTER_SIZE * CONV3_NUM_FILTERS,
-                                       DENSE_NUM_UNITS])),
+        'dense_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV3_FILTER_SIZE * CONV3_FILTER_SIZE * CONV3_NUM_FILTERS, DENSE_NUM_UNITS])),
 
         # Output layer: 512 input units, 4 output units (actions)
         'output_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([DENSE_NUM_UNITS, OUTPUT_NUM_UNITS]))
@@ -144,7 +141,6 @@ class ConvolutionalNeuralNetwork:
 
     @tf.function
     def convolutional_2d_layer(self, inputs, filter_weights, biases, strides=1):
-        # strides = [1, strides, strides, 1]
         output = tf.nn.conv2d(inputs, filter_weights, strides, padding=PADDING)  # TODO: padding in paper?
         output_with_bias = tf.nn.bias_add(output, biases)
         activation = tf.nn.relu(output_with_bias)  # non-linearity TODO: improve paper with leaky relu?
@@ -174,10 +170,10 @@ class ConvolutionalNeuralNetwork:
         return linear_output
 
     @tf.function
-    def huber_error_loss(self, y_predictions, y_true, delta=1.0):
+    def huber_error_loss(self, y_predictions, y_true):
             errors = y_true - y_predictions
 
-            condition = tf.abs(errors) < HUBER_LOSS_DELTA
+            condition = tf.abs(errors) < HUBER_LOSS_DELTA  # 2.0
 
             l2_squared_loss = 0.5 * tf.square(errors)
             l1_absolute_loss = HUBER_LOSS_DELTA * (tf.abs(errors) - 0.5 * HUBER_LOSS_DELTA)
@@ -245,15 +241,14 @@ class Agent:
         self.number_of_states = number_of_states
         self.number_of_actions = number_of_actions
         self.decay_rate = self.decay_exploration_rate()
-        self.should_learn = False
-   
+
     # The behaviour policy during training was e-greedy with e annealed linearly
     # from 1.0 to 0.1 over the first million frames, and fixed at 0.1 thereafter
     def e_greedy_policy(self, state):
         exploration_rate_threshold = random.uniform(0, 1)
 
         if exploration_rate_threshold > self.exploration_rate:
-            next_q_values = self.model.predict(state)  # TODO parameters
+            next_q_values = self.model.predict(state)  # TODO: return only 4 actions not 784 x 4 !!!
             best_action = tf.argmax(next_q_values, 1)
             print(best_action.shape)
         else:
@@ -286,7 +281,7 @@ class Agent:
         return self.replay_memory_buffer
 
 
-REPLAY_START_SIZE = 100
+REPLAY_START_SIZE = 100  # TODO: remove normally
 
 
 class Environment:
@@ -322,7 +317,8 @@ class Environment:
             
             experience = (state, action, reward, preprocessed_next_state, is_done)
             agent.observe(experience)
-            if REPLAY_START_SIZE < step:  # Learn after 50.000 random actions in memory
+
+            if agent.get_replay_memory().get_size() > REPLAY_START_SIZE:  # Learn after 50.000 random actions in memory
                 agent.experience_replay()
 
             state = next_state
