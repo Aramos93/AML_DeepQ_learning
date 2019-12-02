@@ -250,7 +250,6 @@ class Agent:
         if exploration_rate_threshold > self.exploration_rate:
             next_q_values = self.model.predict(state)  # TODO: return only 4 actions not 784 x 4 !!!
             best_action = tf.argmax(next_q_values, 1)
-            print(best_action.shape)
         else:
             best_action = self.random_policy() 
 
@@ -274,8 +273,11 @@ class Agent:
 
     def experience_replay(self):
         memory_batch = self.replay_memory_buffer.get_samples(MEMORY_BATCH_SIZE)
-        for (state, action, reward, next_state, is_done) in memory_batch: 
-            self.model.train(next_state, outputs=self.model.predict(next_state))  # TODO: initial state not preprocessed
+        for (state, action, reward, next_state, is_done) in memory_batch:
+            target = self.model.predict(next_state)
+            if target is None:
+                target = 0  # TODO: should this we changed?
+            self.model.train(next_state, outputs=target)  # TODO: initial state not preprocessed
 
     def get_replay_memory(self):
         return self.replay_memory_buffer
@@ -299,15 +301,15 @@ class Environment:
         return np.sign(reward)
 
     def run(self, agent):
-        state = self.gym.reset()
+        state = self.frame_preprocessor(self.gym.reset())
         total_reward = 0
         step = 0
 
         while True:
             action = agent.choose_action(state)
             next_state, reward, is_done, _ = self.gym.step(action)
-            preprocessed_next_state = self.frame_preprocessor.preprocess_frame(next_state)
-            # self.frame_preprocessor.plot_frame_from_greyscale_values(preprocessed_next_state)
+            next_state = self.frame_preprocessor.preprocess_frame(next_state)
+            # self.frame_preprocessor.plot_frame_from_greyscale_values(next_state)
             reward = self.clip_reward(reward)
 
             if is_done:
@@ -315,7 +317,7 @@ class Environment:
                 # self.gym.render()
                 next_state = None
             
-            experience = (state, action, reward, preprocessed_next_state, is_done)
+            experience = (state, action, reward, next_state, is_done)
             agent.observe(experience)
 
             if agent.get_replay_memory().get_size() > REPLAY_START_SIZE:  # Learn after 50.000 random actions in memory
