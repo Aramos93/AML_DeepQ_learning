@@ -400,7 +400,7 @@ class Environment:
         
         while True:
             self.gym.render()
-            next_q_values = agent.model.predictOne(state)  # TODO: return only 4 actions not 784 x 4 !!!
+            next_q_values = agent.model.predict_one(state)  # TODO: return only 4 actions not 784 x 4 !!!
             print(next_q_values)
             action = np.argmax(next_q_values)
            
