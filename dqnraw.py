@@ -263,27 +263,21 @@ class ConvolutionalNeuralNetwork:
 
         # Convolution Layer 1 with output shape [-1, 84, 84, 32]
         conv1 = self.convolutional_2d_layer(inputs, self.weights['conv1_weights'], self.biases['conv1_biases'])
-        tf.print(conv1.shape)
 
         # Convolutional Layer 2 with output shape [-1, 84, 84, 64]
         conv2 = self.convolutional_2d_layer(conv1, self.weights['conv2_weights'], self.biases['conv2_biases'])
-        tf.print(conv2.shape)
 
         # Convolutional Layer 3 with output shape [-1, 84, 84, 64]
         conv3 = self.convolutional_2d_layer(conv2, self.weights['conv3_weights'], self.biases['conv3_biases'])
-        tf.print(conv3.shape)
 
         # Flatten output of 2nd conv. layer to fit dense layer input, output shape [-1, 3x3x64]
         flattened_layer = self.flatten_layer(layer=conv3, weights_name='dense_weights')
-        tf.print(flattened_layer.shape)
 
         # Dense fully connected layer with output shape [-1, 512]
         dense_layer = self.dense_layer(flattened_layer, self.weights['dense_weights'], biases=self.biases['dense_biases'])
-        tf.print(dense_layer.shape)
 
         # Fully connected output of shape [-1, 4]
         output_layer = self.output_layer(dense_layer, self.weights['output_weights'], biases=self.biases['output_biases'])
-        tf.print(output_layer.shape)
 
         return output_layer
 
