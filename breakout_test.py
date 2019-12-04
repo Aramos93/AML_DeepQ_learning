@@ -203,7 +203,7 @@ class ConvolutionalNeuralNetwork:
     def predict(self, inputs):
 
         # Input shape: [1, 84, 84, 1]. A batch of 84x84x1 (gray scale) images.
-        inputs = tf.reshape(tf.cast(inputs, dtype=tf.float32), shape=[-1, IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH, IMAGE_INPUT_CHANNELS])
+        inputs = tf.reshape(tf.cast(inputs, dtype=tf.float32), shape=[-1, IMAGE_INPUT_HEIGHT, IMAGE_INPUT_WIDTH, IMAGE_INPUT_CHANNELS]) # TODO -1 or 1??
 
         # Convolution Layer 1 with output shape [-1, 84, 84, 32]
         conv1 = self.convolutional_2d_layer(inputs, self.weights['conv1_weights'], self.biases['conv1_biases'])
@@ -249,7 +249,8 @@ class Agent:
 
         if exploration_rate_threshold > self.exploration_rate:
             next_q_values = self.model.predict(state)  # TODO: return only 4 actions not 784 x 4 !!!
-            best_action = tf.argmax(next_q_values, 1)
+            best_action = tf.argmax(next_q_values[0], 1)
+            print(best_action)
         else:
             best_action = self.random_policy() 
 
