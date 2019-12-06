@@ -230,7 +230,7 @@ class ConvolutionalNeuralNetwork:
 
         return output_layer
 
-    # @tf.function
+    @tf.function
     def predict_one(self, state):
         state = tf.reshape(state, shape=(1, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS)) # Reshape 
         prediction = self.predict(state)
