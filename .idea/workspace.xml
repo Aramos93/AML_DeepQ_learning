@@ -1,12 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="94863a22-8934-47a6-bca0-bc94c2e21780" name="Default" comment="">
-      <change afterPath="$PROJECT_DIR$/dqnraw.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/breakout_test.py" beforeDir="false" afterPath="$PROJECT_DIR$/breakout_test.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/breakout_test_keras.py" beforeDir="false" afterPath="$PROJECT_DIR$/breakout_test_keras.py" afterDir="false" />
-    </list>
+    <list default="true" id="94863a22-8934-47a6-bca0-bc94c2e21780" name="Default" comment="" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="TRACKING_ENABLED" value="true" />
     <option name="SHOW_DIALOG" value="false" />
@@ -49,11 +44,8 @@
       <file leaf-file-name="dqnraw.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/dqnraw.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="713">
-              <caret line="178" column="36" lean-forward="true" selection-start-line="178" selection-start-column="36" selection-end-line="178" selection-end-column="36" />
-              <folding>
-                <element signature="e#208#218#0" expanded="true" />
-              </folding>
+            <state relative-caret-position="116">
+              <caret line="181" lean-forward="true" selection-start-line="181" selection-end-line="181" />
             </state>
           </provider>
         </entry>
@@ -126,7 +118,7 @@
     <option name="x" value="1280" />
     <option name="y" value="23" />
     <option name="width" value="1280" />
-    <option name="height" value="1417" />
+    <option name="height" value="1057" />
   </component>
   <component name="ProjectView">
     <navigator proportions="" version="1">
@@ -272,8 +264,7 @@
     <servers />
   </component>
   <component name="ToolWindowManager">
-    <frame x="0" y="23" width="1280" height="1417" extended-state="0" />
-    <editor active="true" />
+    <frame x="1280" y="23" width="1280" height="1057" extended-state="0" />
     <layout>
       <window_info anchor="bottom" id="TODO" order="6" />
       <window_info anchor="bottom" id="Event Log" order="7" side_tool="true" />
@@ -281,7 +272,7 @@
       <window_info anchor="bottom" id="Database Changes" order="7" show_stripe_button="false" />
       <window_info anchor="bottom" id="Version Control" order="7" />
       <window_info anchor="bottom" id="Python Console" order="7" />
-      <window_info anchor="bottom" id="Run" order="2" weight="0.15413254" />
+      <window_info anchor="bottom" id="Run" order="2" weight="0.47058824" />
       <window_info anchor="bottom" id="Terminal" order="7" />
       <window_info content_ui="combo" id="Project" order="0" weight="0.09765625" />
       <window_info anchor="bottom" id="Docker" order="7" show_stripe_button="false" />
@@ -290,7 +281,7 @@
       <window_info anchor="right" id="SciView" order="4" weight="0.5578125" />
       <window_info id="Structure" order="1" side_tool="true" weight="0.25" />
       <window_info id="Favorites" order="2" side_tool="true" />
-      <window_info active="true" anchor="bottom" id="Debug" order="3" visible="true" weight="0.28592703" />
+      <window_info anchor="bottom" id="Debug" order="3" weight="0.28592703" />
       <window_info anchor="right" content_ui="combo" id="Hierarchy" order="2" weight="0.25" />
       <window_info anchor="bottom" id="Inspection" order="5" weight="0.4" />
       <window_info anchor="right" id="Commander" order="0" weight="0.4" />
@@ -320,17 +311,12 @@
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/dqnraw.py</url>
-          <line>306</line>
+          <line>231</line>
           <option name="timeStamp" value="30" />
         </line-breakpoint>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/dqnraw.py</url>
-          <line>269</line>
-          <option name="timeStamp" value="38" />
-        </line-breakpoint>
-        <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
-          <url>file://$PROJECT_DIR$/dqnraw.py</url>
-          <line>382</line>
+          <line>307</line>
           <option name="timeStamp" value="42" />
         </line-breakpoint>
       </breakpoints>
@@ -537,11 +523,8 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/dqnraw.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="713">
-          <caret line="178" column="36" lean-forward="true" selection-start-line="178" selection-start-column="36" selection-end-line="178" selection-end-column="36" />
-          <folding>
-            <element signature="e#208#218#0" expanded="true" />
-          </folding>
+        <state relative-caret-position="116">
+          <caret line="181" lean-forward="true" selection-start-line="181" selection-end-line="181" />
         </state>
       </provider>
     </entry>

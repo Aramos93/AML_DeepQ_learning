@@ -5,16 +5,14 @@ import random
 import matplotlib.pyplot as plt
 import tensorflow as tf
 import copy
-
 import sys
-print(sys.version)
 
 # Install TF 2 and enable GPU
 # if "2." not in tf.__version__ or not tf.test.is_gpu_available(): 
 #   !pip uninstall tensorflow
 #   !pip install tensorflow-gpu
 # print(f"Tensorflow version: {tf.__version__}")
-
+# print(f"Python version: {sys.version}")
 # device_name = tf.test.gpu_device_name()
 # if device_name != '/device:GPU:0':
 #   raise SystemError('GPU device not found')
@@ -27,11 +25,12 @@ FRAME_SKIP = 4
 MEMORY_BATCH_SIZE = 32
 REPLAY_START_SIZE = 50000
 REPLAY_MEMORY_SIZE = 1000000  # RMSProp train updates sampled from this number of recent frames
-NUMBER_OF_EPISODES = 1000000 # TODO: save and restore model with infinite episodes
+NUMBER_OF_EPISODES = 1000000  # TODO: save and restore model with infinite episodes
 EXPLORATION_RATE = 1
 MIN_EXPLORATION_RATE = 0.1
 MAX_FRAMES_DECAYED = REPLAY_MEMORY_SIZE / FRAME_SKIP  # TODO: correct? 1 million in paper
 IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS = 84, 84, 1  
+IMAGE_SHAPE = (IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS) 
 CONV1_NUM_FILTERS, CONV1_FILTER_SIZE, CONV1_FILTER_STRIDES = 32, 8, 4
 CONV2_NUM_FILTERS, CONV2_FILTER_SIZE, CONV2_FILTER_STRIDES = 64, 4, 2
 CONV3_NUM_FILTERS, CONV3_FILTER_SIZE, CONV3_FILTER_STRIDES = 64, 3, 1
@@ -41,9 +40,9 @@ HUBER_LOSS_DELTA, DISCOUNT_FACTOR = 1.0, 0.99
 RANDOM_WEIGHT_INITIALIZER = tf.initializers.RandomNormal()
 HIDDEN_ACTIVATION, OUTPUT_ACTIVATION, PADDING = 'relu', 'linear', "SAME"  # TODO: remove?
 TARGET_MODEL_UPDATE_FREQUENCY = 10000
-
-# LEAKY_RELU_ALPHA, DROPOUT_RATE = 0.2, 0.5  # TODO: remove or use to improve paper
 optimizer = tf.optimizers.RMSprop(learning_rate=LEARNING_RATE, rho=GRADIENT_MOMENTUM, epsilon=MIN_SQUARED_GRADIENT)
+optimizer = tf.optimizers.RMSprop(learning_rate=LEARNING_RATE, rho=GRADIENT_MOMENTUM, epsilon=MIN_SQUARED_GRADIENT)
+# LEAKY_RELU_ALPHA, DROPOUT_RATE = 0.2, 0.5  # TODO: remove or use to improve paper
 
 class FramePreprocessor:
     """
@@ -105,9 +104,7 @@ class ReplayMemory:
 
 class ConvolutionalNeuralNetwork:
     """
-    CNN CLASS
-    Architecture of DQN has 4 hidden layers:
-
+    CNN Architecture for DQN has 4 hidden layers:
     Input:  84 X 84 X 1 image (4 in paper due to frame skipping) (PREPROCESSED image), Game-score, Life count, Actions_count (4)
     1st Hidden layer: Convolves 32 filters of 8 X 8 with stride 4 (relu)
     2nd hidden layer: Convolves 64 filters of 4 X 4 with stride 2 (relu)
@@ -116,25 +113,15 @@ class ConvolutionalNeuralNetwork:
     Output: Fully connected linear layer, Separate output unit for each action, outputs are predicted Q-values
     """
 
-    weights = {
+    weights = { # 4D: Filter Width, Filter Height, In Channel, Out Channel 
         # Conv Layer 1: 8x8 conv, 1 input (preprocessed image has 1 color channel), 32 output filters
-        'conv1_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV1_FILTER_SIZE,  # Filter width
-                                                                CONV1_FILTER_SIZE,  # Filter height
-                                                                IMAGE_CHANNELS,     # In Channel  
-                                                                CONV1_NUM_FILTERS])),  # Out Channel
+        'conv1_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV1_FILTER_SIZE, CONV1_FILTER_SIZE, IMAGE_CHANNELS, CONV1_NUM_FILTERS])), 
         # Conv Layer 2: 4x4 conv, 32 input filters, 64 output filters
-        'conv2_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV2_FILTER_SIZE,
-                                                                CONV2_FILTER_SIZE,
-                                                                CONV1_NUM_FILTERS,
-                                                                CONV2_NUM_FILTERS])),
+        'conv2_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV2_FILTER_SIZE, CONV2_FILTER_SIZE, CONV1_NUM_FILTERS, CONV2_NUM_FILTERS])),
         # Conv Layer 3: 3x3 conv, 64 input filters, 64 output filters
-        'conv3_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV3_FILTER_SIZE,
-                                                                CONV3_FILTER_SIZE,
-                                                                CONV2_NUM_FILTERS,
-                                                                CONV3_NUM_FILTERS])),
+        'conv3_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV3_FILTER_SIZE, CONV3_FILTER_SIZE, CONV2_NUM_FILTERS, CONV3_NUM_FILTERS])),
         # Fully Connected (Dense) Layer: 3x3x64 inputs (64 filters of size 3x3), 512 output units
         'dense_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([IMAGE_HEIGHT * IMAGE_WIDTH * CONV3_NUM_FILTERS, DENSE_NUM_UNITS])),
-
         # Output layer: 512 input units, 4 output units (actions)
         'output_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([DENSE_NUM_UNITS, OUTPUT_NUM_UNITS]))
     }
@@ -147,25 +134,15 @@ class ConvolutionalNeuralNetwork:
         'output_biases': tf.Variable(tf.zeros([OUTPUT_NUM_UNITS]))  # 4
     }
 
-    target_weights = {
+    target_weights = { # 4D: Filter Height, Filter Width, In Channel, Out Channel 
         # Conv Layer 1: 8x8 conv, 1 input (preprocessed image has 1 color channel), 32 output filters
-        'conv1_target_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV1_FILTER_SIZE,  # Filter width
-                                                                CONV1_FILTER_SIZE,  # Filter height
-                                                                IMAGE_CHANNELS,     # In Channel  
-                                                                CONV1_NUM_FILTERS])),  # Out Channel
+        'conv1_target_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV1_FILTER_SIZE, CONV1_FILTER_SIZE, IMAGE_CHANNELS, CONV1_NUM_FILTERS])),  # Out Channel
         # Conv Layer 2: 4x4 conv, 32 input filters, 64 output filters
-        'conv2_target_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV2_FILTER_SIZE,
-                                                                CONV2_FILTER_SIZE,
-                                                                CONV1_NUM_FILTERS,
-                                                                CONV2_NUM_FILTERS])),
+        'conv2_target_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV2_FILTER_SIZE, CONV2_FILTER_SIZE, CONV1_NUM_FILTERS, CONV2_NUM_FILTERS])),
         # Conv Layer 3: 3x3 conv, 64 input filters, 64 output filters
-        'conv3_target_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV3_FILTER_SIZE,
-                                                                CONV3_FILTER_SIZE,
-                                                                CONV2_NUM_FILTERS,
-                                                                CONV3_NUM_FILTERS])),
+        'conv3_target_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([CONV3_FILTER_SIZE, CONV3_FILTER_SIZE, CONV2_NUM_FILTERS, CONV3_NUM_FILTERS])),
         # Fully Connected (Dense) Layer: 3x3x64 inputs (64 filters of size 3x3), 512 output units
         'dense_target_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([IMAGE_HEIGHT * IMAGE_WIDTH * CONV3_NUM_FILTERS, DENSE_NUM_UNITS])),
-
         # Output layer: 512 input units, 4 output units (actions)
         'output_target_weights': tf.Variable(RANDOM_WEIGHT_INITIALIZER([DENSE_NUM_UNITS, OUTPUT_NUM_UNITS]))
     }
@@ -178,12 +155,10 @@ class ConvolutionalNeuralNetwork:
         'output_target_biases': tf.Variable(tf.zeros([OUTPUT_NUM_UNITS]))  # 4
     }
 
-  
     def __init__(self, number_of_states, number_of_actions):  #, model=None):
       self.number_of_states = number_of_states
       self.number_of_actions = number_of_actions
 
-    
     def overwrite_model_params(self): # Assume same order and length 
       for weight, target_weight_key in zip(self.weights.values(), self.target_weights.keys()): 
         self.target_weights[target_weight_key].assign(tf.identity(weight))
@@ -301,9 +276,9 @@ class Agent:
         return decay_rate
 
     # Initialize agent with a given memory capacity, and a state, and action space
-    def __init__(self, number_of_states, number_of_actions, model=None):
+    def __init__(self, number_of_states, number_of_actions):
         self.experiences = ReplayMemory(REPLAY_MEMORY_SIZE)
-        self.model = ConvolutionalNeuralNetwork(number_of_states, number_of_actions)  #, model) if model else ConvolutionalNeuralNetwork(number_of_states, number_of_actions)
+        self.model = ConvolutionalNeuralNetwork(number_of_states, number_of_actions)  
         self.number_of_states = number_of_states
         self.number_of_actions = number_of_actions
         self.decay_rate = self.decay_exploration_rate()
@@ -314,7 +289,7 @@ class Agent:
         exploration_rate_threshold = random.uniform(0, 1)
         if exploration_rate_threshold > self.exploration_rate:
             next_q_values = self.model.predict_one(state)
-            best_action = np.argmax(next_q_values) # tf.argmax
+            best_action = np.argmax(next_q_values) # tf.argmax fails on tie 
         else:
             best_action = self.random_policy() 
         return best_action
@@ -328,52 +303,40 @@ class Agent:
     def update_target_model(self):
       self.model.overwrite_model_params()
       
-      
+    @tf.function 
+    def reshape_image(self, images, batch_size=1): 
+      return tf.reshape(images, shape=(batch_size, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS))
+
     def observe(self, experience):
         self.experiences.add(experience)
-
         self.steps += 1
-        self.exploration_rate = (MIN_EXPLORATION_RATE
-                                 if self.exploration_rate <= MIN_EXPLORATION_RATE
+        self.exploration_rate = (MIN_EXPLORATION_RATE if self.exploration_rate <= MIN_EXPLORATION_RATE
                                  else self.exploration_rate - self.decay_rate)
-        
         if self.steps % TARGET_MODEL_UPDATE_FREQUENCY == 0:
-          # print("\n TARGETS WEIGHTS BEFORE UPDATE:")
-          # tf.print(self.model.target_weights['conv1_target_weights'][0][0]) 
-          # print("\n WEIGHTS BEFORE UPDATE: ")
-          # tf.print(self.model.weights['conv1_weights'][0][0])
           self.update_target_model()
-          # print("\n UPDATED TARGET WEIGHTS")
-          # tf.print(self.model.target_weights['conv1_target_weights'][0][0])
-          # if tf.reduce_all(tf.equal(self.model.target_weights['conv1_target_weights'], self.model.weights['conv1_weights'])): 
-            # print(f"Steps: {self.steps}")
-            # print("Network is equal!!!")
 
     def replay(self):  # Experience: (state, action, reward, next_state, is_done) # Train neural net with experiences
         memory_batch = self.experiences.sample(MEMORY_BATCH_SIZE)
-        memory_batch = [(tf.reshape(state, (1, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS)), action, reward,
-                         np.zeros(shape=(1, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS)), is_done) if is_done
-                        else (tf.reshape(state, (1, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS)), action, reward,
-                              tf.reshape(next_state, (1, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS)), is_done)
-                        for (state, action, reward, next_state, is_done) in memory_batch]
+        memory_batch = [(self.reshape_image(state), action, reward, np.zeros(shape=(1, *IMAGE_SHAPE), dtype=np.uint8), done) if done
+                        else (self.reshape_image(state), action, reward, self.reshape_image(next_state), done)
+                        for (state, action, reward, next_state, done) in memory_batch]
 
-        states = tf.reshape([state for (state, _, _, _, _) in memory_batch],
-                            shape=(MEMORY_BATCH_SIZE, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS))
-        next_states = tf.reshape([next_state for (_, _, _, next_state, _) in memory_batch],
-                                 shape=(MEMORY_BATCH_SIZE, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS))
+        states = self.reshape_image([state for (state, *rest) in memory_batch], batch_size=MEMORY_BATCH_SIZE)
+        next_states = self.reshape_image([next_state for (_, _, _, next_state, _) in memory_batch], batch_size=MEMORY_BATCH_SIZE)
 
         state_predictions = self.model.predict(states)
         next_state_predictions = self.model.predict(next_states)
         target_next_state_predictions = self.model.predict(next_states, is_target = True)
 
-        inputs = np.zeros(shape=(MEMORY_BATCH_SIZE, IMAGE_HEIGHT, IMAGE_WIDTH, IMAGE_CHANNELS))
+        inputs = np.zeros(shape=(MEMORY_BATCH_SIZE, *IMAGE_SHAPE))
         outputs = np.zeros(shape=(MEMORY_BATCH_SIZE, number_of_actions))
 
         for i, (state, action, reward, next_state, is_done) in enumerate(memory_batch):
-            state_target = state_predictions[i].numpy()  # target Q(s,a) for state and action [Q1 Q2 Q3 Q4]
-            state_target[action] = reward if is_done else reward + DISCOUNT_FACTOR * target_next_state_predictions[i][tf.argmax(next_state_predictions[i])] #tf.reduce_max(next_state_predictions[i])  # TODO: np.amax use tf.reduce_max
-            inputs[i] = state
-            outputs[i] = state_target
+            state_target = state_predictions[i].numpy() # Target Q(s,a) for state and action of sample i: [Q1 Q2 Q3 Q4] 
+            next_state_target = target_next_state_predictions[i] 
+            future_discounted_reward = target_next_state_predictions[i][tf.argmax(next_state_predictions[i])] # QTarget[nextstate][action]
+            state_target[action] = reward if is_done else reward + DISCOUNT_FACTOR * future_discounted_reward 
+            inputs[i], outputs[i] = state, state_target
 
         self.model.train(inputs, outputs)
 
@@ -433,7 +396,7 @@ for episode in range(NUMBER_OF_EPISODES):
     if should_print:
         print(f"Episode: {episode+1} with best reward: {environment.best_reward}")
 
-# TODO: 1) Convert NP to Tensors 2) Create Q Target network 3) Store model parameters 4) Run experiments!!! 
+# TODO: 3) Save and restore model parameters 2) Convert NP to Tensors 3) Run experiments!!! 
 # Report: What did you implement. The experiments, difficulties (local machines, scalability, less episodes and memory) and results. Last 2-3 hours with less experiments. 14 pages 
 # Images of architecture, Breakout, convolutions, preprocessed images, Tables of results (time, reward, exploration rate, episodes, memory, hyperparams)
 # Intro: Paper 1-2 page Objective, Theory behind CNN and Reinforcement Q Learning and Deep Q Learning 3 pages, Implementation 2 pages, Experiments and Results 2 pages, Discuss Improvements/Conclusion 1 page    
